@@ -1,39 +1,60 @@
 # Abfuhrkalender Detmold
 
-Eine iOS-App (SwiftUI), die für eine ausgewählte Straße in Detmold den
-**nächsten Abfuhrtermin** sowie eine Liste der **kommenden Termine** anzeigt.
-Beim Öffnen der App wird automatisch der nächste Termin angezeigt – inklusive
-Abfallart, Farbe und Symbol.
+**Die Müllabfuhr-Termine deiner Straße – schön und auf einen Blick.**
 
-## Funktionen
+Eine moderne iOS-App (SwiftUI), die aus dem bestehenden Abfuhrkalender der Stadt
+Detmold ein erstklassiges iPhone-Erlebnis macht: Nächster Termin sofort sichtbar,
+ein Wecker am Vorabend, ein Homescreen-Widget - ohne Accounts, ohne
+Server, ohne Tracking.
 
-- **Straßenauswahl** mit Suche – die Straßenliste wird direkt von der Detmolder
-  Webseite geladen.
-- **Manueller Fallback**: Falls die Straßenliste nicht geladen werden kann, lässt
-  sich die Straßen-ID (`strid`) manuell eingeben.
-- **Nächster Termin groß**: „Heute“ / „Morgen“ / „in N Tagen“ mit Abfallart(en).
-- **Liste „Demnächst“** für die weiteren kommenden Termine.
-- **Automatische Aktualisierung** beim App-Start (`scenePhase == .active`),
-  aber nur, wenn der lokale Cache älter als ~6 Stunden ist.
-- **Offline-fähig**: Termine werden lokal gecached und sofort beim Start angezeigt.
-- **Jahreswechsel-sicher**: Es werden das aktuelle und das nächste Jahr geladen,
-  damit auch um den Jahreswechsel der nächste Termin korrekt ist.
+> **Plattform:** iOS 16+ · **Stack:** SwiftUI, async/await · **Abhängigkeiten:** keine ·
+> **Status:** lauffähig auf echtem Gerät (iPhone 13, iOS 27)
 
-## Abfallarten
+<p align="center">
+  <img src="docs/screenshot-uebersicht.png" alt="Abfuhrkalender Detmold – Hauptansicht mit nächstem Termin, Erinnerung und kommenden Abfuhrterminen" width="300">
+</p>
 
-| Art            | Farbe  | Symbol                  |
-|----------------|--------|-------------------------|
-| Restmüll       | grau   | `trash.fill`            |
-| Bioabfall      | braun  | `leaf.fill`             |
-| Papier/Pappe   | blau   | `newspaper.fill`        |
-| Gelber Sack    | gelb   | `arrow.3.trianglepath`  |
-| Weihnachtsbaum | grün   | `tree.fill`             |
-| Sonstiges      | grau   | `trash.fill`            |
+---
 
-Die Klassifizierung erfolgt anhand des Roh-Labels aus dem Kalender
-(siehe `WasteType.classify(_:)` in `Models.swift`).
+## Die Idee
 
-## Datenquelle
+Jede Woche dieselbe Frage: *„Welche Tonne muss heute Abend raus?"* Die Stadt
+Detmold stellt die Termine bereits als iCal-Export bereit – aber ein Kalender-Abo
+beantwortet die Frage nicht auf einen Blick und erinnert nicht zuverlässig.
+
+Diese App schließt genau diese Lücke: Sie zeigt **den nächsten Abfuhrtermin groß
+und farbig**, schlägt die **Straße automatisch per Standort** vor und **erinnert 
+auf Wunsch am Vorabend wie ein Wecker** - deutlich genug, dass man es im Schlaf- und
+Fokusmodus nicht verpasst - bis man bestätigt, dass die Tonne draußen steht.
+
+## Highlights
+
+- 🗑️ **Nächste Abfuhr auf einen Blick** – große Karte mit „Heute/Morgen/in N Tagen",
+  Abfallart und passender Tonnenfarbe; darunter die kommenden Termine.
+- 📍 **Straße per GPS vorgeschlagen** – beim Öffnen der Auswahl wird die Straße am
+  Standort vorausgefüllt; meist genügt ein Tippen (frei überschreibbar).
+- ⏰ **Echter Wecker statt leiser Push** – am Vorabend 21:00 / 21:30 / 22:00 / 22:30,
+  klingelt laut (durchbricht Stumm-, Schlaf- und Fokusmodus) bis zur Bestätigung
+  „Tonne rausgestellt". Auf iOS 26+ via **AlarmKit**; sonst zeitkritische Mitteilungen.
+- 📱 **Homescreen-Widget** (klein & mittel) im selben Design wie die App.
+- ✈️ **Offline-fähig & schnell** – Termine werden lokal gecacht und beim Start
+  sofort angezeigt; Aktualisierung im Hintergrund.
+- 🔒 **Datenschutzfreundlich** – keine Konten, kein Server, kein Tracking. Der
+  Standort wird ausschließlich lokal für den Straßenvorschlag genutzt.
+
+## Warum das für die Stadt Detmold interessant ist
+
+- **Nutzt die vorhandene Infrastruktur.** Die App liest den bereits existierenden
+  iCal-Export (`icsmaker.php`) – es ist **kein neues Backend** erforderlich.
+- **Geringe Betriebskosten.** Keine Server, keine laufenden Dienste, keine
+  Nutzerkonten-Verwaltung.
+- **Saubere, wartbare Codebasis.** Modernes SwiftUI, **null Fremdabhängigkeiten**,
+  reproduzierbares Projekt-Setup (XcodeGen), klar dokumentiert.
+- **Integrierbar in die Stadt-App.** Branding, App-Icon und Bundle-ID sind zentral
+  anpassbar - Veröffentlichung unter dem Account der Stadt problemlos möglich.
+- **Ausbaufähig.** Naheliegend: Weitere Kommunen, ein Android-Pendant.
+
+## So funktioniert es technisch
 
 Die Stadt Detmold bietet pro Straße einen iCal-Export:
 
@@ -41,81 +62,85 @@ Die Stadt Detmold bietet pro Straße einen iCal-Export:
 https://abfuhrkalender.detmold.de/icsmaker.php?strid=<ID>&year=<JAHR>
 ```
 
-- `strid` = numerische Straßen-ID, `year` = Jahr (z.B. 2026)
-- Rückgabe: Standard-iCalendar (`.ics`), ein `VEVENT` pro Abfuhr
-- Jedes `VEVENT` enthält `DTSTART` (Datum, meist `VALUE=DATE` `YYYYMMDD`) und
-  `SUMMARY` der Form `Müllabfuhr: Restmüll` (das Präfix `Müllabfuhr:` wird
-  abgeschnitten).
+- `strid` = numerische Straßen-ID, `year` = Jahr. Antwort: Standard-iCalendar mit
+  einem `VEVENT` pro Abfuhr (`DTSTART;VALUE=DATE:YYYYMMDD`,
+  `SUMMARY;LANGUAGE=de:Müllabfuhr: <Abfallart>`).
+- Die App lädt **aktuelles und nächstes Jahr** (Jahreswechsel-sicher), parst die
+  Termine mit einem **eigenen, abhängigkeitsfreien RFC-5545-Parser** und ordnet die
+  Abfallart einer Farbe/Symbol zu (Restmüll, Bio, Papier, Gelbe Tonne, Weihnachtsbaum).
+- Die **Straßenliste** wird aus der Startseite gelesen (die Straßen liegen dort als
+  JavaScript-Datenobjekte vor) und ist per Volltextsuche auswählbar.
 
-Referenz: Home-Assistant-Integration
-[`mampfes/hacs_waste_collection_schedule`](https://github.com/mampfes/hacs_waste_collection_schedule),
-Dokumentation `doc/ics/detmold_de.md` (generische ICS-Source, Beispiel `strid=146`).
+## Architektur (Kurzüberblick)
 
-> **Hinweis:** `abfuhrkalender.detmold.de` blockt Rechenzentrums-IPs/Bots mit
-> HTTP 403. Auf einem echten iPhone (Mobilfunk/WLAN) funktionieren die Requests.
-> Die App sendet einen Browser-User-Agent mit, um 403 auf echten Geräten zu
-> vermeiden. **Aus einer Cloud-/CI-Umgebung lässt sich die Seite nicht abrufen
-> oder testen.**
+Klar getrennte, testbare Bausteine – keine externen Pakete:
 
-## Straßen-ID (strid) selbst herausfinden
+| Datei | Aufgabe |
+|---|---|
+| `Models.swift` | Datenmodelle: Straße, Abfallart (Farbe/Symbol/Klassifizierung), Termin |
+| `ICSParser.swift` | RFC-5545-Parser (Line-Unfolding, Datum/Beschreibung, Europe/Berlin) |
+| `DetmoldService.swift` | Laden von Straßenliste und iCal-Daten (async/await) |
+| `ScheduleStore.swift` | Zustand, Cache (App Group), nächster/kommende Termine |
+| `SharedStorage.swift` | Gemeinsamer Datenzugriff von App **und** Widget |
+| `NotificationManager.swift` | Erinnerungen: AlarmKit-Wecker bzw. Mitteilungen |
+| `WasteAlarmScheduler.swift` | AlarmKit-Anbindung (iOS 26+) |
+| `StreetLocator.swift` | Standort → Straßenvorschlag (CoreLocation, lokal) |
+| `ContentView.swift` / `SetupView.swift` | UI: Übersicht & Straßenauswahl |
+| `AbfuhrkalenderWidget/` | Homescreen-Widget (WidgetKit) |
 
-Falls die automatische Straßenliste nicht lädt:
+Eine ausführliche Entwickler-Doku (Architektur, Stolpersteine, Designentscheidungen)
+liegt in **`CLAUDE.md`**.
 
-1. [abfuhrkalender.detmold.de](https://abfuhrkalender.detmold.de) öffnen
-2. Straße auswählen
-3. „Download ics-Datei (iCal)“ wählen
-4. In der URL die Zahl hinter `strid=` übernehmen, z.B. `…?strid=146&…` → `146`
-5. In der App oben rechts in der Straßenauswahl auf das `#`-Symbol tippen und
-   die Zahl eingeben.
-
-## Projekt bauen
+## Bauen & Starten
 
 Das Xcode-Projekt wird mit [XcodeGen](https://github.com/yonyon/XcodeGen) aus
-`project.yml` erzeugt. Die generierte `.xcodeproj` wird **nicht** eingecheckt.
+`project.yml` erzeugt (die `.xcodeproj` wird bewusst nicht eingecheckt).
 
 ```bash
-# XcodeGen installieren (falls noch nicht vorhanden)
+# Voraussetzungen: Xcode (aktuell), Homebrew
 brew install xcodegen
 
-# Projekt generieren
-cd Abfuhrkalender   # Repo-Wurzel mit project.yml
+# Projekt erzeugen und öffnen
 xcodegen generate
-
-# Projekt öffnen
 open Abfuhrkalender.xcodeproj
 ```
 
-Anschließend in Xcode ein Gerät/einen Simulator wählen und mit ⌘R starten.
+In Xcode:
+1. Schema **„Abfuhrkalender"** wählen (nicht das Widget-Schema).
+2. Unter **Signing & Capabilities** das eigene Team setzen; **App Groups**
+   (`group.…`) und die Berechtigungen (Mitteilungen/AlarmKit/Standort) werden bei
+   automatischer Signierung eingerichtet.
+3. iPhone wählen und mit **⌘R** starten. Das Widget anschließend über den
+   Homescreen hinzufügen.
 
-### Projekt-Eckdaten
+**Eckdaten:** iOS 16.0+ · Portrait · Bundle-ID `de.OliverBeine.Abfuhrkalender`
+(anpassbar) · keine externen Abhängigkeiten.
 
-- **Deployment Target:** iOS 16.0
-- **Ausrichtung:** Portrait
-- **Bundle-ID:** `de.OliverBeine.Abfuhrkalender`
-- **Product Name:** `Abfuhrkalender`
-- **Development Team:** `B96YX3A33W`
-- **Code Signing:** Automatic
-- **Architektur:** SwiftUI, `async/await`, eigener ICS-Parser ohne Abhängigkeiten
+## Datenschutz
 
-## Projektstruktur
+Die App verarbeitet **keine personenbezogenen Daten auf Servern**. Es gibt keine
+Konten und kein Tracking. Die gewählte Straße und der Termin-Cache liegen lokal auf
+dem Gerät; der Standort wird nur **lokal** zum Vorschlagen der Straße verwendet und
+nicht gespeichert oder übertragen.
 
-```
-project.yml                              XcodeGen-Projektdefinition
-.gitignore                               ignoriert .xcodeproj, Info.plist, Xcode-Output
-README.md                                diese Datei
-Abfuhrkalender/
-  AbfuhrkalenderApp.swift                App-Entry, Auto-Refresh bei .active
-  Models.swift                           Street, WasteType, CollectionEvent
-  ICSParser.swift                        DTSTART/SUMMARY-Parser, RFC-5545 Unfolding
-  DetmoldService.swift                   Straßenliste + ICS laden (Browser-UA)
-  ScheduleStore.swift                    @MainActor Store, Cache, nextDate/upcoming
-  ContentView.swift                      nächster Termin groß + Liste (refreshable)
-  SetupView.swift                        Straßensuche + manueller strid-Fallback
-  Assets.xcassets/                       AccentColor (grünlich), AppIcon-Platzhalter
-```
+## Status & Roadmap
 
-## Hinweis zur Entwicklung
+**Umgesetzt:** Straßenauswahl mit Suche & GPS-Vorschlag · nächster Termin + Liste ·
+farbiges Design & Homescreen-Widget · Wecker/Erinnerungen (AlarmKit) ·
+Offline-Cache · Jahreswechsel- und Mittags-Logik.
 
-Diese App wurde so geschrieben, dass sie sauber kompiliert. In Umgebungen ohne
-macOS/Xcode lässt sich das Projekt nicht bauen; der Code ist jedoch
-plattformkonform (iOS 16, SwiftUI) und ohne externe Abhängigkeiten gehalten.
+**Denkbar:** Weitere Kommunen · Android-Version · Barrierefreiheit-Feinschliff ·
+Lokalisierung.
+
+## Rechte & Übernahme
+
+© Oliver Beine. Dieser Code ist **proprietär** und nicht unter einer Open-Source-Lizenz
+freigegeben. Für eine **Lizenzierung oder Übernahme** – z. B. durch die Stadt Detmold,
+die die App unter eigenem Namen veröffentlichen möchte – freue ich mich über eine
+Nachricht: **Oliver Beine · oliverbeine@gmx.net**.
+
+---
+
+*Hinweis: Diese App ist ein privates Projekt und steht in keiner offiziellen
+Verbindung zur Stadt Detmold. „Abfuhrkalender Detmold" bezieht sich auf die genutzte
+öffentliche Datenquelle.*
